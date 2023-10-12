@@ -1,0 +1,73 @@
+{% load static %}
+<div class='sidebar px-3 primary_dark sidebar_text transparent_nav justify-content-between flex-column' >
+    <header class="py-2">
+        <a href="">
+            <img src="{% static 'skycaster.png' %}" width="60%">
+        </a>
+            
+    </header>
+    <nav class='navs_space'>
+        
+        <ul class="navs_list  list-unstyled mb-0 py-0">
+            {% if user.groups.all.0.name == 'Admin' %}
+                <li class="{% if request.resolver_match.url_name == 'admin_home' %}active_navbar{% endif %}">
+                    <a href="" class="nav_links">
+                        <i class="fa-solid fa-lock"></i>
+                        <span class='nav_text'>Admin Homepage</span>
+                    </a>
+                </li>
+            {% endif %}
+            <li class="{% if request.resolver_match.url_name == 'homepage' %}active_navbar{% endif %}"> 
+                <a href="" class='nav_links'>
+                    <i class="fa-solid fa-house-user"></i>
+                    <span class='nav_text'>Homepage</span>
+                </a>
+            </li>
+            <li class="{% if request.resolver_match.url_name == 'forecast_data' %}active_navbar{% endif %}">
+                <a href="" class='nav_links'>
+                    <i class="fa-solid fa-table"></i>
+                    <span class='nav_text'>Data</span>	
+                </a>
+                
+            </li>
+            <li class="{% if request.resolver_match.url_name == 'overview' %}active_navbar{% endif %}">
+                <a href="" class='nav_links'>
+                    <i class="fa-solid fa-magnifying-glass-chart"></i>
+                    <span class='nav_text'>Overview</span>	
+                </a>
+                
+            </li>
+            <li class="{% if request.resolver_match.url_name == 'forecast' %}active_navbar{% endif %}">
+                <a href="" class='nav_links'>
+                    <i class="fa-solid fa-chart-simple"></i>
+                    <span class='nav_text'>Forecast</span>	
+                </a>
+                
+            </li>
+            <li class="{% if request.resolver_match.url_name == 'warning' %}active_navbar{% endif %}">
+                <a href="" class='nav_links'>
+                    <i class="fa-solid fa-location-dot"></i>
+                    <span class='nav_text'>Warning Map</span>	
+                </a>
+                
+            </li>
+            <li>
+                <a href="" class='nav_links'>
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span class='nav_text'>Logout</span>	
+                </a>
+                
+            </li>
+        </ul>
+        
+    </nav>
+    <div class="footer">
+        <a href=""> 
+            <img width="45%"  src="//img1.wsimg.com/isteam/ip/b8ad8b19-572b-4c67-b35a-31de2ff3bdfb/Screenshot_2022-11-23_at_4.50.37_PM-removebg-p.png/:/rs=h:67,cg:true,m/qt=q:95" 
+            srcset="//img1.wsimg.com/isteam/ip/b8ad8b19-572b-4c67-b35a-31de2ff3bdfb/Screenshot_2022-11-23_at_4.50.37_PM-removebg-p.png/:/rs=w:138,h:67,cg:true,m/cr=w:138,h:67/qt=q:95, //img1.wsimg.com/isteam/ip/b8ad8b19-572b-4c67-b35a-31de2ff3bdfb/Screenshot_2022-11-23_at_4.50.37_PM-removebg-p.png/:/rs=w:277,h:134,cg:true,m/cr=w:277,h:134/qt=q:95 2x, //img1.wsimg.com/isteam/ip/b8ad8b19-572b-4c67-b35a-31de2ff3bdfb/Screenshot_2022-11-23_at_4.50.37_PM-removebg-p.png/:/rs=w:415,h:201,cg:true,m/cr=w:415,h:201/qt=q:95 3x" 
+            alt="Tensor Dynamics" data-ux="ImageLogo" data-aid="HEADER_LOGO_IMAGE_RENDERED" id="logo-1775" class="x-el x-el-img c1-1 c1-2 c1-2g c1-2f c1-w c1-u c1-t c1-v c1-2q c1-2r c1-2s c1-2t c1-1d c1-2u c1-2l c1-2m c1-2n c1-2o c1-2v c1-1t c1-b c1-c c1-2w c1-2x c1-13 c1-2y c1-2z c1-30 c1-31 c1-32 c1-33 c1-34 c1-35 c1-36 c1-37 c1-38 c1-d c1-39 c1-3a c1-3b c1-e c1-f c1-g">
+        </a>
+
+            <!-- <span class='nav_text'>This is the Footer</span> -->
+    </div>
+</div>
