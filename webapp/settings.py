@@ -56,6 +56,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+# SESSION AGE 5 Minutes
+# SESSION_COOKIE_AGE = 15*60
 
 ROOT_URLCONF = "webapp.urls"
 

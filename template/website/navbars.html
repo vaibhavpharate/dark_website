@@ -52,7 +52,7 @@
                 
             </li>
             <li>
-                <a href="" class='nav_links'>
+                <a href="{% if user.groups.all.0.name == 'Admin' %} admin_logout {% else %} client_logout {% endif %}" class='nav_links'>
                     <i class="fa-solid fa-right-from-bracket"></i>
                     <span class='nav_text'>Logout</span>	
                 </a>

@@ -22,14 +22,21 @@ $('#scroll_hide').show('slow');
           $(this).addClass('light_se');
           $(this).addClass('text-dark');
           $(this).removeClass('bg-transparent');
-          $(this).removeClass('text-white');
+          $(this).removeClass('main_text');
           console.log("Hello")
      },function () {
           $(this).removeClass('light_se');
           $(this).removeClass('text-dark');
           $(this).addClass('bg-transparent');
-          $(this).addClass('text-white');
+          $(this).addClass('main_text');
      })
+
+
+
+     // Add Latest Date
+     let updated = new Date();
+            updated = moment(updated).format("MMMM Do YYYY, h:mm a")
+            $('#updated_date').html(updated);
 })
 // script.js
 
