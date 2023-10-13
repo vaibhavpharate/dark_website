@@ -1,0 +1,29 @@
+{% extends 'website/base.html' %}
+{% load crispy_forms_tags %}
+{% block content_block %}
+
+
+<div class='main_body body_back p-3 d-flex justify-content-center align-items-center'>
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="mb-0">
+                            Client Login
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        {% include 'website/message_box.html' %}
+                        <form action="" class="form1" method="post">
+                            {% csrf_token %}
+                            {{ client_form | crispy }}
+                            <button class="btn submit_button">Login</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

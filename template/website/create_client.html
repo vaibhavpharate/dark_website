@@ -1,0 +1,32 @@
+{% extends 'website/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content_block %}
+{% include 'website/navbars.html' %}
+
+<div class='main_body body_back p-3 margin_four'>
+    <div class="container-fluid px-0">
+        <div class="row d-flex justify-content-center align-items-center">
+            <div class="col-6">
+                <div class="card">
+                     <div class="card-header">
+                         <h3 class="mb-0 header_text">Create Clients</h3>
+                     </div>
+                     <div class="card-body">
+                        <div class="p-2">
+                            {% include 'website/message_box.html' %}
+                        </div>
+                         <form method="post" class="form1" enctype="multipart/form-data" class="black_form">
+                             {% csrf_token %}
+                             {{ form | crispy }}    
+                             <button class="btn submit_button">Create Client</button>
+                         </form>
+                     </div>
+                </div> 
+             </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
