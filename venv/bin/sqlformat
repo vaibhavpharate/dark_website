@@ -1,4 +1,6 @@
-#!/home/ubuntu/new_dashboard/webapp/venv/bin/python
+#!/bin/sh
+'''exec' "/home/tensor/Dashboard Webapp/webapp2/venv/bin/python" "$0" "$@"
+' '''
 # -*- coding: utf-8 -*-
 import re
 import sys
