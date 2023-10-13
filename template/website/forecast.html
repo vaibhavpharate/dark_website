@@ -1,0 +1,194 @@
+{% extends 'website/base.html' %}
+{# <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>#}
+{% block content_block %}
+    {% include 'website/navbars.html' %}
+    <div class="main_body margin_four p-3 ">
+        {% include 'website/message_box.html' %}
+        <div class="row">
+            <div class="col-10"></div>
+            {% include 'website/updated_date.html' %}
+        </div>
+        <div class="input-group input-daterange py-4 form1">
+            <input type="date" id="min-date" class="form-control date-range-filter"
+                           data-date-format="yyyy-mm-dd" placeholder="From:">
+
+            <div class="input-group-addon px-2">to</div>
+
+            <input type="date" id="max-date" class="form-control date-range-filter"
+                           data-date-format="yyyy-mm-dd" placeholder="To:">
+
+        </div>
+        <div class="row my-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="mb-0">
+                            Forecast Data
+                        </h3>
+                    </div>
+                    <div class="card-body table_datas">
+                        <table class="table forecast_table table-striped" id="forecast_table">
+                            <thead class="text-white text-center">
+                            <tr>
+                        {% if user.groups.all.0.name == 'Admin' %}
+                            <th>Client</th>
+                        {% endif %}
+                        <th>Timestamp</th>
+                        <th>Site Name</th>
+                        <th>Cloud Description</th>
+                        <th>Warning Category</th>
+                        <th>Avg Temp Forecast</th>
+                        <th>Avg Temp Actual</th>
+                        <th>Ghi Forecast</th>
+                        <th>Ghi Actual</th>
+                        <th>Avg Wind Speed Forecast</th>
+                        {#                        <th>Avg Wind Speed Actual</th>#}
+                    </tr>
+                    </thead>
+                    <tbody>
+
+                    </tbody>
+                </table>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    function get_table() {
+        console.log("We are here")
+                let table = $('#forecast_table').DataTable({
+                        fixedHeader: true,
+                        "ajax": {
+                            data: {'username': '{{ user.username}}', 'group': '{{ user.groups.all.0 }}'},
+                            dataType: 'json',
+                            url: '{% url 'get_forecast_table' %}',
+                        },
+
+
+                        dataSrc: 'data',
+                        columns: [
+                            {% if user.groups.all.0.name == 'Admin' %}
+                                {data: 'site_client_name'},
+                            {% endif %}
+
+                            {
+                                data: 'timestamp',
+                                render: function (data, type, row) {
+                                    if (type === "sort" || type === "type") {
+                                        return data;
+                                    }
+                                    return moment(data).format("MMMM Do YYYY, h:mm a");
+                                }
+
+                            },
+                            {data: 'site_name'},
+                            {
+                                data: 'Cloud Description',
+                                render: function (data, type, row) {
+                                    if (type === "sort" || type === "type") {
+                                        return data;
+                                    }
+                                    {#return "<div class='text-wrap width-200'>" + data + "</div>";#}
+                                    return data
+                                },
+                                width:'200px'
+
+                            },
+                            {data: 'Warning Description'},
+                            {
+                                data: 'temp_forecast', render: function (data, type, row) {
+                                    return parseFloat(data).toFixed(2);
+                                }
+                            },
+                            {
+                                data: 'temp_actual', render: function (data, type, row) {
+                                    return parseFloat(data).toFixed(2);
+                                }
+                            },
+                            {
+                                data: 'ghi_forecast', render: function (data, type, row) {
+                                    return parseFloat(data).toFixed(2);
+                                }
+                            },
+                            {
+                                data: 'ghi_actual', render: function (data, type, row) {
+                                    return parseFloat(data).toFixed(2);
+                                }
+                            },
+                            {
+                                data: 'wind_speed_forecast', render: function (data, type, row) {
+                                    return parseFloat(data).toFixed(2);
+                                }
+                            },
+                            {#{data: 'wind_speed_actual'}#}
+
+                        ],
+
+                        fixedHeader: true,
+                        order:
+                            [[0, 'asc'], [1, 'desc']],
+
+                        initComplete: function () {
+                            this.api().columns([1, 2, 3]).every(function () {
+                                var column = this;
+                                $(column.header()).append("<br>")
+                                var select = $('<select><option value=""></option></select>')
+                                    .appendTo($(column.header()))
+                                    .on('change', function () {
+                                        var val = $.fn.dataTable.util.escapeRegex(
+                                            $(this).val()
+                                        );
+
+                                        column
+                                            .search(val ? '^' + val + '$' : '', true, false)
+                                            .draw();
+                                    });
+                                column.data().unique().sort().each(function (d, j) {
+                                    select.append('<option value="' + d + '">' + d.toString().substring(0, 100) + '</option>')
+                                });
+                            });
+                        }
+                    })
+                ;
+
+
+                // Custom filtering function which will search data in column four between two values
+                // Extend dataTables search
+                $.fn.dataTable.ext.search.push(
+                    function (settings, data, dataIndex) {
+                        var min = $('#min-date').val();
+                        {#console.log("Doomsday")#}
+                        {#console.log(moment(min))#}
+                        var max = $('#max-date').val();
+                        var createdAt = data[
+                            {% if user.groups.all.0.name == 'Admin' %}
+                                1
+                            {% else %}
+                                0
+                            {% endif %}
+
+
+                    ]  // Our date column in the table
+                        {#console.log(moment(createdAt))#}
+                        if (
+                            (min == "" || max == "") ||
+                            (moment(createdAt).isSameOrAfter(min) && moment(createdAt).isSameOrBefore(max))
+                        ) {
+                            return true;
+                        }
+                        return false;
+                    }
+                );
+
+                // Re-draw the table when the a date range filter changes
+                $('.date-range-filter').change(function () {
+                    table.draw();
+                });
+
+                $('#my-table_filter').hide();
+            }
+            get_table();
+</script>
+{% endblock %}

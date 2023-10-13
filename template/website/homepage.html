@@ -9,6 +9,7 @@
             <div class="row justify-content-between align-items-center">
                 <div class="col-3">
                     <div class="form1">
+                        <label for="site_type" class="main_text">Select Site Type</label>
                         <select name="site_type" id="site_type" class="form-select">
                             <option value="Solar">Solar</option>
                             <option value="Wind" disabled>Wind</option>
@@ -115,7 +116,46 @@
             let group = '{{ user.groups.all.0 }}';
 
             {#console.log(username)#}
+            $('#overview_table').DataTable({
+                fixedHeader: false,
+                "ajax": {
+                    data: {
+                        'username': '{{ user.username}}',
+                        'group': '{{ user.groups.all.0.name }}',
+                        'type': $('#site_type').val()
+                    },
+                    dataType: 'json',
 
+                    url: '{% url "get_overview_data" %}',
+                    "dataSrc": function (json) {
+
+
+                        return json.data;
+                    },
+
+                },
+                pageLength: 5,
+                columns: [
+
+                    {data: 'site_name'},
+                    {% if user.groups.all.0.name == 'Admin' %}
+                        {data: 'client_name'},
+                    {% endif %}
+
+                    {data: 'site_status'},
+                    {data: 'state'},
+                    {
+                        data: 'timestamp_forecast', render: function (data, type, row) {
+                            if (type === "sort" || type === "type") {
+                                return data;
+                            }
+                            {#console.log(moment(data,'DD/MM/YYYY, h:mm a').format("MMMM Do YYYY, h:mm a"))#}
+                            return moment(data, 'DD/MM/YYYY, h:mm').format("MMMM Do YYYY, h:mm a");
+                            {#return data#}
+                        }
+                    },
+                ],
+            });
             function get_sites() {
                 {#console.log('{{ user.username }}')#}
                 $.ajax({
@@ -166,46 +206,7 @@
             let site_selected = $('#select_site').val();
 
             get_forecast_graph();
-            $('#overview_table').DataTable({
-                fixedHeader: false,
-                "ajax": {
-                    data: {
-                        'username': '{{ user.username}}',
-                        'group': '{{ user.groups.all.0.name }}',
-                        'type': $('#site_type').val()
-                    },
-                    dataType: 'json',
 
-                    url: '{% url "get_overview_data" %}',
-                    "dataSrc": function (json) {
-
-
-                        return json.data;
-                    },
-
-                },
-                pageLength: 5,
-                columns: [
-
-                    {data: 'site_name'},
-                    {% if user.groups.all.0.name == 'Admin' %}
-                        {data: 'client_name'},
-                    {% endif %}
-
-                    {data: 'site_status'},
-                    {data: 'state'},
-                    {
-                        data: 'timestamp_forecast', render: function (data, type, row) {
-                            if (type === "sort" || type === "type") {
-                                return data;
-                            }
-                            {#console.log(moment(data,'DD/MM/YYYY, h:mm a').format("MMMM Do YYYY, h:mm a"))#}
-                            return moment(data, 'DD/MM/YYYY, h:mm').format("MMMM Do YYYY, h:mm a");
-                            {#return data#}
-                        }
-                    },
-                ],
-            });
 
 
 

@@ -305,7 +305,6 @@ def get_homepage_data(request):
                                                 'timestamp': True},
                                     height=350,
                                     size_max=20,
-
                                     color='Warning Category',
                                     opacity=0.3, zoom=3,
                                     # color_discrete_sequence=['green', 'orange','red', 'red', 'red', 'red']
@@ -356,12 +355,11 @@ def get_homepage_data(request):
             )
             fig2.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='grey',color='white')
             fig2.update_xaxes(showgrid=True, gridwidth=0.4, gridcolor='grey',color='white')
-
+            fig2.update_layout(legend_font_color='grey')
             fig2.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-
-                height=500,
+                height=400,
                 xaxis_title="Timestamp",
                 yaxis_title="GHI (W/m2)",
                 # legend_title="Legends",
@@ -380,3 +378,67 @@ def get_homepage_data(request):
             )
             graphJSON2 = json.dumps(fig2, cls=enc_pltjson)
             return JsonResponse({'maps_data': graphJSON, 'graphs_data': graphJSON2}, status=200, safe=False)
+
+
+@login_required(login_url='client_login')
+def forecast_tabular(request):
+    return render(request=request, template_name='website/forecast.html')
+
+def get_forecast_table(request):
+    if request.method == 'GET':
+        username = request.GET['username']
+        user_group = request.GET['group']
+        username = username.title()
+        # print(request.GET['group'])
+        # print(user_group)
+        yesterday = datetime.now()
+        time_string = datetime.strftime(yesterday, '%m-%d-%y %H:%M:%S')
+        query = ""
+
+        if user_group == "Admin":
+            query = "SELECT site_client_name, forecast_cloud_index , timestamp, site_name,temp_actual,temp_forecast,ghi_actual" \
+                    ",ghi_forecast,wind_speed_actual,wind_speed_forecast,forecast_cloud_type FROM dashboarding.v_final_dashboarding_view WHERE timestamp >= '{time_string}' " \
+                    "ORDER BY timestamp DESC LIMIT 10000"
+        else:
+            query = f"""SELECT vda.site_name,
+                                vda.timestamp,
+                               vda.wind_speed_10m_mps AS wind_speed_forecast,
+                               vda.wind_direction_in_deg AS wind_direction_forecast,
+                               vda.temp_c  AS temp_forecast,
+                               vda.nowcast_ghi_wpm2   AS ghi_forecast,
+                               vda.ct_flag_data AS "Cloud Description",
+                               vda.ci_data AS "forecast_cloud_index",
+                               vda.ct_data AS "forecast_cloud_type",
+                               vda.forecast_method,
+                               conf.client_name AS site_client_name,
+                               sa."ghi(w/m2)" AS ghi_actual,
+                               sa."temp(c)"   AS temp_actual,
+                               sa.ws          AS wind_speed_actual,
+                               sa.wd          AS wind_direction_actual,
+                               conf.type
+                        FROM forecast.v_db_api vda
+                                 JOIN configs.site_config conf ON vda.site_name = conf.site_name
+                                 LEFT JOIN site_actual.site_actual sa on (vda.timestamp,vda.site_name) = (sa.timestamp,sa.site_name)
+                        WHERE vda.timestamp >= '{time_string}' AND conf.client_name = '{username}' 
+                        AND conf.type='Solar'  ORDER BY vda.timestamp desc LIMIT 10000;"""
+        df_4 = get_sql_data(query)
+        ci_index = 0.1
+        df_4['forecast_cloud_type'] = df_4['forecast_cloud_type'].fillna('No Cloud')  ## Old Query
+        df_4['Cloud Description'] = df_4['Cloud Description'].str.replace("_", " ").str.title()
+        df_4['ghi_actual'] = df_4['ghi_actual'].fillna('None')
+        df_4['Warning Description'] = None
+        df_4.loc[df_4['forecast_cloud_index'] > 0.1, "Warning Description"] = "Cloud Warning"
+        df_4.loc[df_4['forecast_cloud_index'] <= 0.1, "Warning Description"] = "No Warning"
+
+
+        df_4.fillna("None", inplace=True)
+        if user_group == "Admin":
+            send_list = ['site_client_name', 'timestamp', 'site_name', 'Cloud Description',
+                         'Warning Description', 'temp_forecast', 'temp_actual', 'ghi_forecast',
+                         'ghi_actual', 'wind_speed_forecast']
+        else:
+            send_list = ['timestamp', 'site_name', 'Cloud Description',
+                         'Warning Description', 'temp_forecast', 'temp_actual', 'ghi_forecast',
+                         'ghi_actual', 'wind_speed_forecast']
+        df_4 = df_4.loc[:, send_list]
+        return JsonResponse({'data': df_4.to_dict('records')}, status=200, safe=False)

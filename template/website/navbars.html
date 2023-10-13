@@ -18,13 +18,13 @@
                 </li>
             {% endif %}
             <li class="{% if request.resolver_match.url_name == 'homepage' %}active_navbar{% endif %}"> 
-                <a href="" class='nav_links'>
+                <a href="{% url 'homepage' %}" class='nav_links'>
                     <i class="fa-solid fa-house-user"></i>
                     <span class='nav_text'>Homepage</span>
                 </a>
             </li>
-            <li class="{% if request.resolver_match.url_name == 'forecast_data' %}active_navbar{% endif %}">
-                <a href="" class='nav_links'>
+            <li class="{% if request.resolver_match.url_name == 'forecast_tabular' %}active_navbar{% endif %}">
+                <a href="{% url 'forecast_tabular' %}" class='nav_links'>
                     <i class="fa-solid fa-table"></i>
                     <span class='nav_text'>Data</span>	
                 </a>
