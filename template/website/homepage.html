@@ -125,7 +125,7 @@
                         'type': $('#site_type').val()
                     },
                     dataType: 'json',
-
+                    async: true,
                     url: '{% url "get_overview_data" %}',
                     "dataSrc": function (json) {
 

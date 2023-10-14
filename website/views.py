@@ -7,6 +7,9 @@ import numpy as np
 import json
 from datetime import datetime, timedelta
 
+# files processing
+import os
+
 ## User Login
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import login, authenticate, logout
@@ -172,9 +175,25 @@ def create_client(request):
     return render(request=request, template_name='website/create_client.html', context=context)
 
 
+def get_data_store(username):
+    date = datetime.now().date() - timedelta(days=1)
+    date = datetime.strftime(date,'%Y-%m-%d 00:00:00')
+    sites = get_site_client(client_name=username, type='Solar')
+    sites = tuple(sites)
+    query = f"SELECT * FROM forecast.v_db_api vda WHERE vda.site_name in {sites} and vda.timestamp >= '{date}'"
+    df = get_sql_data(query)
+    df.to_csv(f'static/data/{username}.csv')
+    return f"Data Store created for {username} for date {date}"
+
+def check_data_store(request):
+    username = request.user.username
+    return os.path.exists(f"static/data/{username}.csv")
+
 @login_required(login_url='client_login')
 def homepage(request):
     context = {}
+    if ~check_data_store(request):
+        print(get_data_store(request.user.username))
     return render(request, template_name='website/homepage.html', context=context)
 
 
