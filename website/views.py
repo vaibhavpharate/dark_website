@@ -6,7 +6,8 @@ import pandas as pd
 import numpy as np
 import json
 from datetime import datetime, timedelta
-
+# from pandas.core import SettingWithCopyWarning
+pd.options.mode.chained_assignment = None
 # files processing
 import os
 
@@ -28,17 +29,19 @@ from plotly.subplots import make_subplots
 # Database Connections
 from django.db import connections
 from django.http import JsonResponse
+from django.conf import settings
 
 # Getting Models
 from .models import Clients
 # Clients Form
 from .forms import ClientsForm
 
+# tokens = settings.mapbox_token
 User = get_user_model()
-token = "pk.eyJ1IjoidmFpYmhhdnBoYXJhdGUiLCJhIjoiY2xuazFubDJnMXFtdDJrdzVhdHB5dThkYyJ9.SZBQ94MCcz7odz-WkOOs7w"
+token = settings.MAPBOX_TOKEN
 px.set_mapbox_access_token(token)
 
-
+date_format = '%Y-%m-%d %H:%M:%S'
 # Create your views here.
 
 
@@ -138,6 +141,9 @@ def admin_logout(request):
 
 
 def client_logout(request):
+    username = request.user.username
+    if check_data_store(request):
+        os.remove(f'static/data/{username}.csv')
     logout(request)
     messages.warning(request, "You have successfully logged out.")
     return redirect('client_login')
@@ -180,7 +186,31 @@ def get_data_store(username):
     date = datetime.strftime(date,'%Y-%m-%d 00:00:00')
     sites = get_site_client(client_name=username, type='Solar')
     sites = tuple(sites)
-    query = f"SELECT * FROM forecast.v_db_api vda WHERE vda.site_name in {sites} and vda.timestamp >= '{date}'"
+
+    query = f"""SELECT vda.site_name,
+                                vda.timestamp,
+                               vda.wind_speed_10m_mps AS wind_speed_forecast,
+                               vda.wind_direction_in_deg AS wind_direction_forecast,
+                               vda.temp_c  AS temp_forecast,
+                               vda.nowcast_ghi_wpm2   AS ghi_forecast,
+                               vda.ct_flag_data AS "Cloud Description",
+                               vda.ci_data AS "forecast_cloud_index",
+                               vda.ct_data AS "forecast_cloud_type",
+                               vda.forecast_method,
+                               conf.client_name AS site_client_name,
+                               conf.latitude as site_lat,
+                               conf.longitude as site_lon,
+                               sa."ghi(w/m2)" AS ghi_actual,
+                               sa."temp(c)"   AS temp_actual,
+                               sa.ws          AS wind_speed_actual,
+                               sa.wd          AS wind_direction_actual,
+                               conf.type
+                        FROM forecast.v_db_api vda
+                                 JOIN configs.site_config conf ON vda.site_name = conf.site_name
+                                 LEFT JOIN site_actual.site_actual sa on (vda.timestamp,vda.site_name) = (sa.timestamp,sa.site_name)
+                        WHERE vda.timestamp >= '{date}' AND conf.client_name = '{username}' 
+                        AND conf.type='Solar'  ORDER BY vda.timestamp desc LIMIT 10000;"""
+
     df = get_sql_data(query)
     df.to_csv(f'static/data/{username}.csv')
     return f"Data Store created for {username} for date {date}"
@@ -192,7 +222,7 @@ def check_data_store(request):
 @login_required(login_url='client_login')
 def homepage(request):
     context = {}
-    if ~check_data_store(request):
+    if not check_data_store(request):
         print(get_data_store(request.user.username))
     return render(request, template_name='website/homepage.html', context=context)
 
@@ -282,19 +312,22 @@ def get_homepage_data(request):
         if group == "Admin":
             query = ""
         else:
-            query = f"""SELECT vda.site_name, vda.timestamp, vda.wind_speed_10m_mps AS wind_speed_forecast, 
-            vda.wind_direction_in_deg AS wind_direction_forecast, vda.temp_c AS wind_direction_forecast, 
-            vda.nowcast_ghi_wpm2 AS ghi_forecast, vda.swdown2,vda.ci_data AS forecast_cloud_index, vda.tz, vda.ct_data, vda.ct_flag_data, 
-            vda.forecast_method, vda.log_ts, conf.client_name, conf.latitude AS site_lat,
-            conf.longitude AS site_lon, sa."ghi(w/m2)" AS ghi_actual, 
-            sa."temp(c)" AS temp_actual, sa.ws AS wind_speed_actual, sa.wd AS wind_direction_actual 
-            FROM forecast.v_db_api vda JOIN configs.site_config conf ON vda.site_name = conf.site_name 
-            LEFT JOIN site_actual.site_actual sa on (vda.timestamp,vda.site_name) = (sa.timestamp,sa.site_name) 
-            WHERE conf.client_name = '{client}' AND vda.ci_data IS NOT NULL  AND vda.timestamp > '{time_string}'
-        ORDER BY timestamp DESC"""
-            ci_index = 0.1
-            df = get_sql_data(query)
+        #     query = f"""SELECT vda.site_name, vda.timestamp, vda.wind_speed_10m_mps AS wind_speed_forecast,
+        #     vda.wind_direction_in_deg AS wind_direction_forecast, vda.temp_c AS wind_direction_forecast,
+        #     vda.nowcast_ghi_wpm2 AS ghi_forecast, vda.swdown2,vda.ci_data AS forecast_cloud_index, vda.tz, vda.ct_data, vda.ct_flag_data,
+        #     vda.forecast_method, vda.log_ts, conf.client_name, conf.latitude AS site_lat,
+        #     conf.longitude AS site_lon, sa."ghi(w/m2)" AS ghi_actual,
+        #     sa."temp(c)" AS temp_actual, sa.ws AS wind_speed_actual, sa.wd AS wind_direction_actual
+        #     FROM forecast.v_db_api vda JOIN configs.site_config conf ON vda.site_name = conf.site_name
+        #     LEFT JOIN site_actual.site_actual sa on (vda.timestamp,vda.site_name) = (sa.timestamp,sa.site_name)
+        #     WHERE conf.client_name = '{client}' AND vda.ci_data IS NOT NULL  AND vda.timestamp > '{time_string}'
+        # ORDER BY timestamp DESC"""
 
+            ci_index = 0.1
+            # df = get_sql_data(query)
+            df = pd.read_csv(f'static/data/{client_name}.csv')
+            df = df.rename({'site_client_name':'client_name'},axis='columns')
+            # print(df.columns)
             df = df.groupby(['timestamp', 'site_name', 'client_name']).aggregate(
                 {'ghi_forecast': 'mean', 'ghi_actual': 'mean', 'forecast_cloud_index': 'mean', 'site_lat': 'mean',
                  'site_lon': 'mean'}).reset_index()
@@ -401,8 +434,11 @@ def get_homepage_data(request):
 
 @login_required(login_url='client_login')
 def forecast_tabular(request):
+    if not check_data_store(request):
+        print(get_data_store(request.user.username))
     return render(request=request, template_name='website/forecast.html')
 
+@login_required(login_url='client_login')
 def get_forecast_table(request):
     if request.method == 'GET':
         username = request.GET['username']
@@ -412,8 +448,6 @@ def get_forecast_table(request):
         # print(user_group)
         yesterday = datetime.now()
         time_string = datetime.strftime(yesterday, '%m-%d-%y %H:%M:%S')
-        query = ""
-
         if user_group == "Admin":
             query = "SELECT site_client_name, forecast_cloud_index , timestamp, site_name,temp_actual,temp_forecast,ghi_actual" \
                     ",ghi_forecast,wind_speed_actual,wind_speed_forecast,forecast_cloud_type FROM dashboarding.v_final_dashboarding_view WHERE timestamp >= '{time_string}' " \
@@ -438,9 +472,11 @@ def get_forecast_table(request):
                         FROM forecast.v_db_api vda
                                  JOIN configs.site_config conf ON vda.site_name = conf.site_name
                                  LEFT JOIN site_actual.site_actual sa on (vda.timestamp,vda.site_name) = (sa.timestamp,sa.site_name)
-                        WHERE vda.timestamp >= '{time_string}' AND conf.client_name = '{username}' 
+                        WHERE vda.timestamp >= '{time_string}' AND conf.client_name = '{username}'
                         AND conf.type='Solar'  ORDER BY vda.timestamp desc LIMIT 10000;"""
-        df_4 = get_sql_data(query)
+
+        # df_4 = get_sql_data(query)
+        df_4 = pd.read_csv(f'static/data/{username}.csv')
         ci_index = 0.1
         df_4['forecast_cloud_type'] = df_4['forecast_cloud_type'].fillna('No Cloud')  ## Old Query
         df_4['Cloud Description'] = df_4['Cloud Description'].str.replace("_", " ").str.title()
@@ -461,3 +497,162 @@ def get_forecast_table(request):
                          'ghi_actual', 'wind_speed_forecast']
         df_4 = df_4.loc[:, send_list]
         return JsonResponse({'data': df_4.to_dict('records')}, status=200, safe=False)
+
+@login_required(login_url='client_login')
+def forecast_warning(request):
+    if not check_data_store(request):
+        print(get_data_store(request.user.username))
+    return render(request=request,template_name='website/forecast_warning.html',context={})
+@login_required(login_url='client_login')
+def get_fw_data(request):
+    if request.method == 'GET':
+        username = request.GET['username']
+        site_name = request.GET['site_name']
+        start_date = request.GET['start_date']
+        end_date = request.GET['end_date']
+        variable = request.GET['variable']
+
+        if len(start_date) > 1:
+            start_date = start_date + " 00:00:00"
+        if len(end_date) > 1:
+            end_date = end_date + " 23:59:59"
+
+        pd_start_date = datetime.strptime(start_date,date_format)
+        pd_end_date = datetime.strptime(end_date,date_format)
+
+        query = f"""SELECT vda.site_name, vda.timestamp, vda.wind_speed_10m_mps AS wind_speed_forecast, 
+            vda.wind_direction_in_deg AS wind_direction_forecast, vda.temp_c AS temp_forecast, 
+            vda.nowcast_ghi_wpm2 AS ghi_forecast, vda.swdown2,vda.ci_data AS forecast_cloud_index, vda.tz, vda.ct_data, vda.ct_flag_data, 
+            vda.forecast_method, vda.log_ts, conf.client_name, conf.latitude AS site_lat,
+            conf.longitude AS site_lon, sa."ghi(w/m2)" AS ghi_actual, 
+            sa."temp(c)" AS temp_actual, sa.ws AS wind_speed_actual, sa.wd AS wind_direction_actual 
+            FROM forecast.v_db_api vda JOIN configs.site_config conf ON vda.site_name = conf.site_name 
+            LEFT JOIN site_actual.site_actual sa on (vda.timestamp,vda.site_name) = (sa.timestamp,sa.site_name) 
+            WHERE conf.site_name = '{site_name}' AND vda.ci_data IS NOT NULL  AND vda.timestamp > '{start_date}' AND vda.timestamp <= '{end_date}'  ORDER BY timestamp DESC"""
+        df = pd.read_csv(f'static/data/{username}.csv')
+        df['timestamp'] = pd.to_datetime(df['timestamp'],format=date_format)
+        min_date = df.loc[:,'timestamp'].min()
+        max_date = df.loc[:,'timestamp'].max()
+
+        ## Do this Later
+        # print(pd_start_date < min_date)
+        if pd_start_date < min_date or pd_start_date > max_date:
+            df = get_sql_data(query)
+            print("start date is not in range")
+        elif pd_end_date > max_date or pd_end_date < min_date:
+            df = get_sql_data(query)
+            print("End date is not in range")
+        else:
+            print("Date in data-stores")
+        ci_index = 0.1
+        # df = get_sql_data(query)
+        df = df.loc[df['site_name']==site_name,:]
+        df = df.loc[(df['timestamp']>= pd_start_date) & (df['timestamp']<=pd_end_date),:]
+
+        df = df.groupby(['timestamp']).aggregate(
+            {f'{variable}_actual': 'mean', f'{variable}_forecast': 'mean',
+             'forecast_cloud_index': 'mean'}).reset_index()
+        df['Deviation'] = (df[f'{variable}_actual'] - df[f'{variable}_forecast']).abs().div(
+            df[f'{variable}_actual']) * 100
+        mn = df.loc[df[f'{variable}_actual'] > 0, 'Deviation'].mean()
+        df['color'] = df['Deviation'].map(lambda x: "Green" if x <= mn else "Red")
+        df['Graph Index'] = None
+        df['Warning Description'] = None
+        df['Warning Category'] = None
+        df.loc[df['forecast_cloud_index'] > 0.1, "Warning Category"] = "Red"
+        df.loc[df['forecast_cloud_index'] <= 0.1, "Warning Category"] = "Green"
+        df.loc[df['forecast_cloud_index'] > 0.1, "Warning Description"] = "Cloud Warning"
+        df.loc[df['forecast_cloud_index'] <= 0.1, "Warning Description"] = "No Warning"
+        for x in df.loc[:, ['forecast_cloud_index', f'{variable}_forecast', 'Warning Description']].index:
+            if df['forecast_cloud_index'][x] > ci_index:
+                df['Graph Index'][x] = df[f'{variable}_forecast'][x]
+
+        readings = {'ghi': "W/m2", "temp": f"{chr(176)} C", 'wind_speed': "m/s"}
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=df['timestamp'],
+            y=df[f'{variable}_actual'],
+            name=f"{variable.title()} Actual"
+        ))
+        fig.add_trace(go.Scatter(
+            x=df['timestamp'],
+            y=df[f'{variable}_forecast'],
+            name=f"{variable.title()} Forecast"
+        ))
+        fig.add_trace(
+            go.Scatter(
+                x=df['timestamp'],
+                y=df['Graph Index'],
+                name='Cloud Warning',
+                mode='markers',
+                marker_color='orange',
+                marker_size=10
+            )
+        )
+        fig.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='LightGrey')
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)',
+                          plot_bgcolor='rgba(0,0,0,0)',
+                          height=500,
+                          xaxis_title="Timestamp",
+                          yaxis_title=f"{readings[variable]}",
+                          legend_title="Legends",
+                          font=dict(
+                              family="Arial",
+                              size=15,
+                          ),
+                          margin=dict(
+                              l=10,
+                              r=10,
+                              b=10,
+                              t=10,
+                              pad=1
+                          ),
+                          )
+
+        # print(df)
+
+        fig2 = go.Figure()
+        fig2.add_trace(go.Bar(
+            x=df.loc[df['color'] == 'Green', 'timestamp'],
+            y=df.loc[df['color'] == 'Green', 'Deviation'],
+            marker_color='green',
+            name='Below'
+        ))
+
+        fig2.add_trace(go.Bar(
+            x=df.loc[df['color'] == 'Red', 'timestamp'],
+            y=df.loc[df['color'] == 'Red', 'Deviation'],
+            name="Above",
+            marker_color="red"
+
+        ))
+        fig2.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='LightGrey')
+        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)',
+                           plot_bgcolor='rgba(0,0,0,0)',
+                           height=500 / 2,
+
+                           xaxis_title="Timestamp",
+                           yaxis_title="Deviation",
+                           legend_title="%Deviation",
+                           font=dict(
+                               family="Arial",
+                               size=15,
+                           ),
+                           margin=dict(
+                               l=10,
+                               r=10,
+                               b=10,
+                               t=10,
+                               pad=1
+                           ),
+                           )
+        fig.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
+        fig.update_xaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
+        fig.update_layout(legend_font_color='grey')
+        fig2.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
+        fig2.update_xaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
+        fig2.update_layout(legend_font_color='grey')
+        graphJSON = json.dumps(fig, cls=enc_pltjson)
+        graphJson2 = json.dumps(fig2, cls=enc_pltjson)
+        return JsonResponse({'data': graphJSON, 'deviation': graphJson2}, status=200)
+

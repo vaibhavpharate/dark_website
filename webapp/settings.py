@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+from .configs import *
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -88,25 +89,26 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         # 'NAME': BASE_DIR / 'db.sqlite3',/
         'OPTIONS': {
-            'options': '-c search_path=webapp'
+            'options': f'-c search_path={USER_SCHEMA}'
         },
         'NAME': 'postgres',
-        'USER': 'admin123',
-            'PASSWORD': 'tensor123',
-        'HOST': 'tensordb1.cn6gzof6sqbw.us-east-2.rds.amazonaws.com',  # Or an IP Address tShat your DB is hosted on
-        'PORT': '5432',
+        'USER': f'{USER_NAME}',
+        'PASSWORD': f'{PASSWORD}',
+        'HOST': f'{DATABASE_HOST}',  # Or an IP Address tShat your DB is hosted on
+        'PORT': f'{PORT}',
     },
     'dashboarding': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'postgres',
-        'USER': 'admin123',
-        'PASSWORD': 'tensor123',
-        'HOST': 'tensordb1.cn6gzof6sqbw.us-east-2.rds.amazonaws.com',
-        'PORT': '5432',
+        'USER': f'{USER_NAME}',
+        'PASSWORD': f'{PASSWORD}',
+        'HOST': f'{DATABASE_HOST}',  # Or an IP Address tShat your DB is hosted on
+        'PORT': f'{PORT}',
 
     }
 }
 
+mapbox_token = MAPBOX_TOKEN
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

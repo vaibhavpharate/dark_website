@@ -11,6 +11,8 @@ urlpatterns = [
     path('client_logout',view=client_logout,name='client_logout'),
     path('homepage',view=homepage,name='homepage'),
     path('forecast_tabular',view=forecast_tabular,name='forecast_tabular'),
+    path('forecast_warning',view=forecast_warning,name='forecast_warning'),
+    path('get_fw_data',get_fw_data,name='get_fw_data'),
 
 
 

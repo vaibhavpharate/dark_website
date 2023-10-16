@@ -116,46 +116,47 @@
             let group = '{{ user.groups.all.0 }}';
 
             {#console.log(username)#}
-            $('#overview_table').DataTable({
-                fixedHeader: false,
-                "ajax": {
-                    data: {
-                        'username': '{{ user.username}}',
-                        'group': '{{ user.groups.all.0.name }}',
-                        'type': $('#site_type').val()
-                    },
-                    dataType: 'json',
-                    async: true,
-                    url: '{% url "get_overview_data" %}',
-                    "dataSrc": function (json) {
-
-
-                        return json.data;
-                    },
-
-                },
-                pageLength: 5,
-                columns: [
-
-                    {data: 'site_name'},
-                    {% if user.groups.all.0.name == 'Admin' %}
-                        {data: 'client_name'},
-                    {% endif %}
-
-                    {data: 'site_status'},
-                    {data: 'state'},
-                    {
-                        data: 'timestamp_forecast', render: function (data, type, row) {
-                            if (type === "sort" || type === "type") {
-                                return data;
-                            }
+            {#$('#overview_table').DataTable({#}
+            {#    fixedHeader: false,#}
+            {#    "ajax": {#}
+            {#        data: {#}
+            {#            'username': '{{ user.username}}',#}
+            {#            'group': '{{ user.groups.all.0.name }}',#}
+            {#            'type': $('#site_type').val()#}
+            {#        },#}
+            {#        dataType: 'json',#}
+            {#        async: true,#}
+            {#        url: '{% url "get_overview_data" %}',#}
+            {#        "dataSrc": function (json) {#}
+            {##}
+            {##}
+            {#            return json.data;#}
+            {#        },#}
+            {##}
+            {#    },#}
+            {#    pageLength: 5,#}
+            {#    columns: [#}
+            {##}
+            {#        {data: 'site_name'},#}
+            {#        {% if user.groups.all.0.name == 'Admin' %}#}
+            {#            {data: 'client_name'},#}
+            {#        {% endif %}#}
+            {##}
+            {#        {data: 'site_status'},#}
+            {#        {data: 'state'},#}
+            {#        {#}
+            {#            data: 'timestamp_forecast', render: function (data, type, row) {#}
+            {#                if (type === "sort" || type === "type") {#}
+            {#                    return data;#}
+            {#                }#}
                             {#console.log(moment(data,'DD/MM/YYYY, h:mm a').format("MMMM Do YYYY, h:mm a"))#}
-                            return moment(data, 'DD/MM/YYYY, h:mm').format("MMMM Do YYYY, h:mm a");
+            {#                return moment(data, 'DD/MM/YYYY, h:mm').format("MMMM Do YYYY, h:mm a");#}
                             {#return data#}
-                        }
-                    },
-                ],
-            });
+            {#            }#}
+            {#        },#}
+            {#    ],#}
+            {#});#}
+
             function get_sites() {
                 {#console.log('{{ user.username }}')#}
                 $.ajax({
