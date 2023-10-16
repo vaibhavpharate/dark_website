@@ -1,0 +1,175 @@
+{% extends 'website/base.html' %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+{% block content_block %}
+    {% include 'website/navbars.html' %}
+
+    <div class='main_body margin_four body_back p-3'>
+        {% include 'website/message_box.html' %}
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12 mx-ato">
+                    <div class="row">
+                        <div class="col-3 py-2 form1">
+                            <label for="site_select" class="strong">Select Site</label>
+                            <select name="site_select" id="site_select" class="form-select">
+                            </select>
+                        </div>
+                        <div class="col-3 py-2 form1">
+                            <label for="start_date" class="strong">Start Date</label>
+                            <input type="date" id="start_date" class="form-control">
+                        </div>
+                        <div class="col-3 py-2 form1">
+                            <label for="end_date" class="strong">End Date</label>
+                            <input type="date" id="end_date" class="form-control">
+                        </div>
+                        <div class="col-3 py-2 form1">
+                            <label for="variable" class="strong">Variable</label>
+                            <select name="variable" id="variable" class="form-select">
+                                <option value="ghi">GHI (W/m2)</option>
+                                <option value="temp">Temperature</option>
+                                <option value="wind_speed">Wind Speed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-12 py-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="mb-0 text-center">
+                                    Forecast
+                                </h3>
+                            </div>
+                            <div class="card-body">
+                                {% include 'website/loading.html' %}
+                                <div class="figure_div w-100" id="canvas_section1"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="mb-0 text-center">
+                                    Deviation
+                                </h3>
+                            </div>
+                            <div class="card-body">
+                                {% include 'website/loading.html' %}
+                                <div class="figure_div w-100" id="canvas_section2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <script>
+        $(document).ready(function () {
+            let now = new Date();
+            let last_twenty_days = now.setDate(now.getDate() - 1);   // Setting Yesterday date
+            let mom_date = moment(last_twenty_days).format("YYYY-MM-DD");
+            {#console.log(yesterday)#}
+            $('#start_date').val(mom_date);
+
+            // Setting Two days Buffer
+            let next_two_says = now.setDate(now.getDate() + 2);
+            next_two_says = moment(next_two_says).format("YYYY-MM-DD");
+            $('#end_date').val(next_two_says);
+            $('#variable').val();
+
+            function get_sites() {
+                {#console.log('{{ user.username }}')#}
+                $.ajax({
+                    url: "{% url 'get_sites' %}",
+                    dataType: 'json',
+                    async: false,
+
+                    data: {'username': '{{ user.username }}', 'group': '{{ user.groups.all.0 }}', 'type': 'Solar'},
+                    success: function (data) {
+                        {#console.log(data)#}
+                        let sites = data.data;
+                        let counter = 1;
+                        for (s in sites) $('#site_select').append(
+                            "<option value='" + sites[s].site_name + "'" + (sites[s].site_name ===
+                            'Hisar' ? "selected" : "") + " >" + sites[s].site_name + "</option>"
+                        );
+                    }
+                })
+            }
+
+            get_sites();
+
+            function get_fw_data() {
+                $('.figure_div').hide()
+                $('.center').show()
+                let start_date = $('#start_date').val();
+                let end_date = $('#end_date').val();
+                let variable = $('#variable').val();
+                let username = '{{ user.username }}';
+                let group = '{{ user.groups.all.0.name }}';
+                let site_name = $('#site_select').val();
+                {#console.log(group)#}
+                $.ajax({
+                    url: '{% url "get_fw_data" %}',
+                    dataType: 'json',
+                    {#async: false,#}
+                    data: {
+                        'username': username,
+                        'group': group,
+                        'site_name': site_name,
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'variable': variable,
+                    },
+                    success: function (data, status) {
+                        {#console.log(status)#}
+                        {#console.log(data.data)#}
+                        $('.figure_div').show()
+                        $('.center').hide()
+                        let graphs = JSON.parse(data.data);
+                        Plotly.newPlot("canvas_section1", graphs, {})
+
+                        let graph2 = JSON.parse(data.deviation);
+                        Plotly.newPlot("canvas_section2", graph2, {})
+
+                    }
+                })
+            }
+
+            get_fw_data()
+
+            $('#variable').unbind('change').change(function () {
+                {#console.log($(this).val())#}
+
+                get_fw_data();
+
+            })
+            $('#site_select').unbind('change').change(function () {
+                console.log($(this).val())
+                {#$('.figure_div').hide()#}
+                {#$('.center').show()#}
+                get_fw_data();
+
+            })
+            $('#end_date').unbind('change').change(function () {
+                console.log($(this).val())
+                {#$('.figure_div').hide()#}
+                {#$('.center').show()#}
+
+                get_fw_data();
+
+            })
+            $('#start_date').unbind('change').change(function () {
+                {#console.log($(this).val())#}
+
+                let some_date = moment($(this).val())
+                some_date = new Date(some_date)
+                let next_two_says = new Date(some_date.setDate(some_date.getDate() + 3))
+                next_two_says = moment(next_two_says).format("YYYY-MM-DD");
+                $('#end_date').val(next_two_says);
+                get_fw_data();
+
+            })
+        })
+    </script>
+
+{% endblock %}
