@@ -31,7 +31,7 @@
                 
             </li>
             <li class="{% if request.resolver_match.url_name == 'overview' %}active_navbar{% endif %}">
-                <a href="" class='nav_links'>
+                <a href="{% url 'overview' %}" class='nav_links'>
                     <i class="fa-solid fa-magnifying-glass-chart"></i>
                     <span class='nav_text'>Overview</span>	
                 </a>
@@ -45,7 +45,7 @@
                 
             </li>
             <li class="{% if request.resolver_match.url_name == 'warning' %}active_navbar{% endif %}">
-                <a href="" class='nav_links'>
+                <a href="{% url 'warning' %}" class='nav_links'>
                     <i class="fa-solid fa-location-dot"></i>
                     <span class='nav_text'>Warning Map</span>	
                 </a>

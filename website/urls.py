@@ -11,8 +11,10 @@ urlpatterns = [
     path('client_logout',view=client_logout,name='client_logout'),
     path('homepage',view=homepage,name='homepage'),
     path('forecast_tabular',view=forecast_tabular,name='forecast_tabular'),
+    path('forecast_tabular/',view=forecast_tabular,name='forecast_tabular'),
     path('forecast_warning',view=forecast_warning,name='forecast_warning'),
-    path('get_fw_data',get_fw_data,name='get_fw_data'),
+    path('warning',view=warnings,name='warning'),
+    path('overview',view=overview,name='overview'),
 
 
 
@@ -20,6 +22,8 @@ urlpatterns = [
     path('get_overview_data',get_overview_data,name='get_overview_data'),
     path('get_sites',get_sites,name='get_sites'),
     path('get_homepage_data',get_homepage_data,name='get_homepage_data'),
-    path('get_forecast_table',get_forecast_table,name='get_forecast_table')
+    path('get_forecast_table',get_forecast_table,name='get_forecast_table'),
+    path('get_fw_data',get_fw_data,name='get_fw_data'),
+    path('get_warnings_data',get_warnings_data,name='get_warnings_data'),
 
 ]

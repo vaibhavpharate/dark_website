@@ -1,0 +1,100 @@
+{% extends 'website/base.html' %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+{% block content_block %}
+    {% include 'website/navbars.html' %}
+
+    <div class='main_body margin_four body_back p-3'>
+        {% include 'website/message_box.html' %}
+        <div class="container-fluid px-0">
+            <div class="row">
+                <div class="col-11 mx-auto">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="mb-0">
+                                Overview
+                            </h3>
+                        </div>
+                        <div class="card-body table_datas">
+                            <table class="table table-striped" id="overview">
+                                <thead class="fixed text-white">
+                                <tr>
+                                    <th>Site Name</th>
+                                    {% if user.groups.all.0.name == 'Admin' %}
+                                        <th>Client Name</th>
+                                    {% endif %}
+
+                                    <th>State</th>
+                                    <th>Site Status</th>
+                                    <th>Avg. Capacity</th>
+                                    <th>Forecast Till</th>
+                                    <th>Actual Available till</th>
+                                    <th>Days since Actual Data Update</th>
+                                </tr>
+                                </thead>
+                                <tbody id="overview_body">
+
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+    $(document).ready(function () {
+
+            $('#overview').DataTable({
+
+                // Set the 1st column of the
+                // DataTable to ascending order
+                // and the 2nd to descending order
+                fixedHeader: true,
+                "ajax": {
+                    data: {'username': '{{ user.username}}', 'group': '{{ user.groups.all.0 }}','type':'Solar'},
+                    dataType: 'json',
+                    url: '{% url 'get_overview_data' %}',
+
+
+                },
+                dataSrc: 'data',
+                columns: [
+                    {data: 'site_name'},
+                    {% if user.groups.all.0.name == 'Admin' %}
+                            {data: 'client_name'},
+                        {% endif %}
+                    {data: 'state'},
+                    {data: 'site_status'},
+                    {data: 'capacity'},
+                    {data: 'timestamp_forecast'},
+                    {data: 'timestamp_actual'},
+                    {data: 'days_till'}
+                ],
+
+                order: [[0, 'asc'], [1, 'desc']],
+
+                initComplete: function () {
+                    this.api().columns([0, 1, 2, 3]).every(function () {
+                        var column = this;
+                        $(column.header()).append("<br>")
+                        var select = $('<select><option value=""></option></select>')
+                            .appendTo($(column.header()))
+                            .on('change', function () {
+                                var val = $.fn.dataTable.util.escapeRegex(
+                                    $(this).val()
+                                );
+
+                                column
+                                    .search(val ? '^' + val + '$' : '', true, false)
+                                    .draw();
+                            });
+                        column.data().unique().sort().each(function (d, j) {
+                            select.append('<option value="' + d + '">' + d + '</option>')
+                        });
+                    });
+                }
+
+            });
+        });
+</script>
+{% endblock %}

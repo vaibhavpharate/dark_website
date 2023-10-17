@@ -1,0 +1,108 @@
+{% extends 'website/base.html' %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+{% block content_block %}
+    {% include 'website/navbars.html' %}
+
+    <div class='main_body margin_four body_back p-3'>
+        {% include 'website/message_box.html' %}
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-6 map_div">
+
+
+                <div class="card figure_cards">
+                    <div class="card-header secondary">
+                        <h4 class="text-center mb-0">
+                            Warning Site Map
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        {% include 'website/loading.html' %}
+                        <div class="canvas_section1" id="canvas_section1"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 warning_div">
+
+                <div class="card figure_cards">
+                    <div class="card-header secondary">
+                        <h4 class="text-center mb-0">
+                            Warning Indicators
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        {% include 'website/loading.html' %}
+                        <div class="canvas_section1" id="canvas_section2"></div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+<script>
+    $(document).ready(function () {
+        let vl = Number($('#set_index').val()) / 10;
+        $('#range_span').html(vl)
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+        let client = "NA"
+        $('.center').show()
+        // {% if user.groups.all.0.name == "Admin" %}
+        //     $.ajax({
+        //         async: false,
+        //         url: "{% url 'get_clients' %}",
+        //         dataType: 'json',
+        //         data: {'username': '{{ user.username }}', 'group': '{{ user.groups.all.0 }}'},
+        //
+        //         success: function (data, status) {
+        //             let clients = data.data;
+        //             {#console.log(clients);#}
+        //             for (s in clients) $('#select_client').append(
+        //                 "<option value='" + clients[s].clients + "'" + " >" + clients[s].clients + "</option>"
+        //             );
+        //
+        //         },
+        //         complete: function (data) {
+        //              get_map_data();
+        //         }
+        //     })
+        //     {#console.log("Worlds")#}
+        //
+        // {% else %}
+        //
+        //     client = "{{ user.username }}";
+        //
+        //     get_map_data();
+        // {% endif %}
+        // {#console.log(client);#}
+
+        function get_map_data() {
+            $('.center').show()
+            // {% if user.groups.all.0.name == "Admin" %}
+            //     client = $("#select_client").val();
+            // {% else %}
+            client = "{{ user.username }}";
+            // {% endif %}
+            $.ajax({
+                url: "{% url 'get_warnings_data' %}",
+                async: false,
+                dataType: 'json',
+                data: {'username': client, 'index': $('#set_index').val(),'group':'Client'},
+                success: function (res, status) {
+                    var graphs = JSON.parse(res.data);
+                    $('.center').hide()
+                    $('.canvas_section1').show()
+                    Plotly.newPlot("canvas_section1", graphs, {})
+                    var histos = JSON.parse(res.histos);
+                    Plotly.newPlot("canvas_section2", histos, {})
+                }
+            })
+        }
+        get_map_data()
+    })
+
+
+
+
+
+</script>
+{% endblock %}

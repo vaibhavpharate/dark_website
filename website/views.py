@@ -182,7 +182,7 @@ def create_client(request):
 
 
 def get_data_store(username):
-    date = datetime.now().date() - timedelta(days=1)
+    date = datetime.now().date() - timedelta(days=10)
     date = datetime.strftime(date,'%Y-%m-%d 00:00:00')
     sites = get_site_client(client_name=username, type='Solar')
     sites = tuple(sites)
@@ -212,7 +212,7 @@ def get_data_store(username):
                         AND conf.type='Solar'  ORDER BY vda.timestamp desc LIMIT 10000;"""
 
     df = get_sql_data(query)
-    df.to_csv(f'static/data/{username}.csv')
+    df.to_csv(f'static/data/{username}.csv',index=False)
     return f"Data Store created for {username} for date {date}"
 
 def check_data_store(request):
@@ -226,6 +226,13 @@ def homepage(request):
         print(get_data_store(request.user.username))
     return render(request, template_name='website/homepage.html', context=context)
 
+
+@login_required(login_url='client_login')
+def overview(request):
+    context = {}
+    if not check_data_store(request):
+        print(get_data_store(request.user.username))
+    return render(request, template_name='website/overview.html', context=context)
 
 @login_required(login_url='client_login')
 def get_overview_data(request):
@@ -307,7 +314,8 @@ def get_homepage_data(request):
         group = request.GET['group']
         type = request.GET['type']
         site_name = request.GET['site_name']
-        yesterday = datetime.now().date()
+        date_yesterday = datetime.now() -timedelta(days=1)
+        yesterday = date_yesterday.date()
         time_string = datetime.strftime(yesterday, '%m-%d-%y %H:%M:%S')
         if group == "Admin":
             query = ""
@@ -331,6 +339,8 @@ def get_homepage_data(request):
             df = df.groupby(['timestamp', 'site_name', 'client_name']).aggregate(
                 {'ghi_forecast': 'mean', 'ghi_actual': 'mean', 'forecast_cloud_index': 'mean', 'site_lat': 'mean',
                  'site_lon': 'mean'}).reset_index()
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.loc[df['timestamp']>=date_yesterday,:]
             df['C_I_R'] = df['forecast_cloud_index'] * 125
             df['Warning Description'] = None
             df['Warning Category'] = None
@@ -655,4 +665,122 @@ def get_fw_data(request):
         graphJSON = json.dumps(fig, cls=enc_pltjson)
         graphJson2 = json.dumps(fig2, cls=enc_pltjson)
         return JsonResponse({'data': graphJSON, 'deviation': graphJson2}, status=200)
+
+
+@login_required(login_url='client_login')
+def warnings(request):
+    if not check_data_store(request):
+        print(get_data_store(request.user.username))
+    return render(request=request,template_name='website/warnings.html',context={})
+
+
+@login_required(login_url='client_login')
+def get_warnings_data(request):
+    if request.method == 'GET':
+        username = request.GET['username']
+        group = request.GET['username']
+        ci_index = 0.1
+        # Get the Data Frame
+        df = pd.read_csv(f'static/data/{username}.csv')
+        now_timestamp = datetime.now()
+        three_hours_plus = now_timestamp + timedelta(hours=3)
+
+        now_string = datetime.strftime(now_timestamp,date_format)
+        three_hours_plus_string = datetime.strftime(three_hours_plus,date_format)
+
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df = df.loc[(df['timestamp']>=now_timestamp)&(df['timestamp']<=three_hours_plus),:]
+        fnl = df.copy()
+        fnl['Warning Description'] = None
+        fnl['Warning Category'] = None
+        fnl.loc[
+            (fnl['forecast_cloud_index'] > 0.1) & (fnl['forecast_cloud_index'] <= 0.25), "Warning Category"] = "Orange"
+        fnl.loc[fnl['forecast_cloud_index'] <= 0.1, "Warning Category"] = "Green"
+        fnl.loc[fnl['forecast_cloud_index'] > 0.25, "Warning Category"] = "Red"
+        fnl.loc[fnl['forecast_cloud_index'] > 0.1, "Warning Description"] = "Cloud Warning"
+        fnl.loc[fnl['forecast_cloud_index'] <= 0.1, "Warning Description"] = "No Warning"
+        sites_list = list(fnl['site_name'].unique())
+        print(sites_list)
+        sites_list.sort()
+        fnl['timestamp'] = pd.to_datetime(fnl.timestamp)
+        fnl['timestamp2'] = fnl['timestamp'].dt.strftime('%d %b %Y %H:%M')
+        fnl['C_I_R'] = fnl['forecast_cloud_index'] * 100
+        fn1 = fnl.groupby(['site_name', 'timestamp', 'Warning Description', 'Warning Category']).aggregate(
+            {'site_lat': 'mean', 'site_lon': 'mean', 'forecast_cloud_index': 'mean', 'C_I_R': 'mean'}).reset_index()
+        color_list = ['lightgreen', 'green', 'red', 'red', 'red', 'red', 'red', 'crimson', 'crimson', 'crimson']
+        if ci_index > 0.1:
+            replace_list = ['green'] * int(ci_index * 10)
+            color_list[1:(int(ci_index * 10))] = replace_list
+        color_list = fn1['Warning Category'].str.lower().unique()
+        fig = px.scatter_mapbox(fn1, lat='site_lat', lon='site_lon',
+                                size='C_I_R',
+                                hover_name='site_name',
+                                hover_data={'C_I_R': False,
+                                            'Warning Category': False,
+                                            'forecast_cloud_index': True,
+                                            'timestamp': True},
+                                height=700,
+                                size_max=20,
+
+                                color='Warning Category',
+                                opacity=0.3, zoom=4,
+                                color_discrete_sequence=color_list)
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=fn1['site_lat'],
+                lon=fn1['site_lon'],
+                mode='markers+text',
+                text=fn1['site_name'],
+                textposition='bottom center',
+                marker=dict(size=5, color="green"),
+                textfont=dict(size=16, color='blue')
+            )
+        )
+        fig.update_layout(showlegend=False)
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)',
+                          plot_bgcolor='rgba(0,0,0,0)',
+                          margin={'l': 0, 't': 0, 'b': 0, 'r': 0})
+        # fig.update_layout(hovermode=False)
+        graphJSON = json.dumps(fig, cls=enc_pltjson)
+        three_plus = datetime.now() + timedelta(hours=3)
+        fn1 = fn1.loc[fn1['timestamp'] <= three_plus, :]
+        fig2 = make_subplots(rows=len(sites_list), cols=1, subplot_titles=sites_list)
+        for idx in range(len(sites_list)):
+            fig2.add_trace(go.Bar(
+                x=fn1.loc[(fn1['site_name'] == sites_list[idx]) & (fn1['Warning Category'] == 'Green'), 'timestamp'],
+                y=fn1.loc[(fn1['site_name'] == sites_list[idx]) & (
+                        fn1['Warning Category'] == 'Green'), 'forecast_cloud_index'], name=sites_list[idx]
+                , marker_color='green'),
+                row=idx + 1, col=1)
+            fig2.add_trace(go.Bar(
+                x=fn1.loc[(fn1['site_name'] == sites_list[idx]) & (fn1['Warning Category'] == 'Orange'), 'timestamp'],
+                y=fn1.loc[(fn1['site_name'] == sites_list[idx]) & (
+                        fn1['Warning Category'] == 'Orange'), 'forecast_cloud_index'], name=sites_list[idx]
+                , marker_color='orange'),
+                row=idx + 1, col=1)
+            fig2.add_trace(go.Bar(
+                x=fn1.loc[(fn1['site_name'] == sites_list[idx]) & (fn1['Warning Category'] == 'Red'), 'timestamp'],
+                y=fn1.loc[
+                    (fn1['site_name'] == sites_list[idx]) & (fn1['Warning Category'] == 'Red'), 'forecast_cloud_index'],
+                name=sites_list[idx]
+                , marker_color='red'),
+                row=idx + 1, col=1)
+            fig2.add_hline(y=0.1, line_width=1, line_dash="dash", line_color="grey", opacity=0.7, annotation_text="0.1 CI",)
+            fig2.update_layout(font ={'color':'white'},margin={'l': 0, 't': 30, 'b': 0, 'r': 0})
+            fig2.update_yaxes(visible=False)
+
+        # print(fn1)
+        fig.update_layout(height=700, title_text="Forecast Cloud Index")
+        fig.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
+        fig.update_xaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
+        fig.update_layout(legend_font_color='grey')
+        fig2.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
+        fig2.update_xaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
+        fig2.update_layout(legend_font_color='grey')
+        fig2.update_layout(height=700, showlegend=False, )
+        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)',
+                           plot_bgcolor='rgba(0,0,0,0)',
+                           margin={'l': 0, 't': 30, 'b': 0, 'r': 0})
+        graphJSON2 = json.dumps(fig2, cls=enc_pltjson)
+        return JsonResponse({'data': graphJSON, 'histos': graphJSON2}, status=200, safe=False)
 
