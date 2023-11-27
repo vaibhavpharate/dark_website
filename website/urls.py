@@ -25,5 +25,6 @@ urlpatterns = [
     path('get_forecast_table',get_forecast_table,name='get_forecast_table'),
     path('get_fw_data',get_fw_data,name='get_fw_data'),
     path('get_warnings_data',get_warnings_data,name='get_warnings_data'),
+    path('get_homepage_graph_data/',update_on_site_change,name='get_homepage_graph_data')
 
 ]

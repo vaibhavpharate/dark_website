@@ -15,6 +15,7 @@ import os
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import  csrf_protect
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import Permission
 from django.contrib import messages
@@ -75,7 +76,7 @@ def get_sql_data(query):
 
 
 def get_site_client(client_name=None, type=None):
-    client_name = client_name.title()
+    # client_name = client_name.title()
 
     if client_name == None:
         df = get_sql_data(
@@ -93,7 +94,7 @@ def convert_data_to_json(df: pd.DataFrame):
     data = json.loads(json_records)
     return data
 
-
+@csrf_protect
 def admin_login(request):
     form = AuthenticationForm()
     if request.method == "POST":
@@ -183,6 +184,8 @@ def create_client(request):
 
 def get_data_store(username):
     date = datetime.now().date() - timedelta(days=10)
+    print("Date is")
+    print(date)
     date = datetime.strftime(date,'%Y-%m-%d 00:00:00')
     sites = get_site_client(client_name=username, type='Solar')
     sites = tuple(sites)
@@ -198,6 +201,7 @@ def get_data_store(username):
                                vda.ct_data AS "forecast_cloud_type",
                                vda.forecast_method,
                                conf.client_name AS site_client_name,
+                               conf.site_status AS site_status,
                                conf.latitude as site_lat,
                                conf.longitude as site_lon,
                                sa."ghi(w/m2)" AS ghi_actual,
@@ -209,7 +213,7 @@ def get_data_store(username):
                                  JOIN configs.site_config conf ON vda.site_name = conf.site_name
                                  LEFT JOIN site_actual.site_actual sa on (vda.timestamp,vda.site_name) = (sa.timestamp,sa.site_name)
                         WHERE vda.timestamp >= '{date}' AND conf.client_name = '{username}' 
-                        AND conf.type='Solar'  ORDER BY vda.timestamp desc LIMIT 10000;"""
+                        AND conf.type='Solar'  ORDER BY vda.timestamp desc"""
 
     df = get_sql_data(query)
     df.to_csv(f'static/data/{username}.csv',index=False)
@@ -291,7 +295,7 @@ def get_overview_data(request):
 def get_sites(request):
     if request.method == "GET":
         username = request.GET['username']
-        username = username.title()
+        # username = username.title()
         group = request.GET['group']
         type = request.GET['type']
         df = get_site_client(client_name=username, type=type)
@@ -309,7 +313,7 @@ def get_sites(request):
 def get_homepage_data(request):
     if request.method == "GET":
         client = request.GET['username']
-        client = client.title()
+        # client = client.title()
         client_name = client
         group = request.GET['group']
         type = request.GET['type']
@@ -454,7 +458,7 @@ def get_forecast_table(request):
     if request.method == 'GET':
         username = request.GET['username']
         user_group = request.GET['group']
-        username = username.title()
+        # username = username.title()
         # print(request.GET['group'])
         # print(user_group)
         yesterday = datetime.now()
@@ -475,6 +479,7 @@ def get_forecast_table(request):
                                vda.ct_data AS "forecast_cloud_type",
                                vda.forecast_method,
                                conf.client_name AS site_client_name,
+                               conf.site_status AS site_status,
                                sa."ghi(w/m2)" AS ghi_actual,
                                sa."temp(c)"   AS temp_actual,
                                sa.ws          AS wind_speed_actual,
@@ -489,6 +494,7 @@ def get_forecast_table(request):
         # df_4 = get_sql_data(query)
         df_4 = pd.read_csv(f'static/data/{username}.csv')
         ci_index = 0.1
+        df_4 = df_4.loc[df_4['site_status']=='Active',:]
         df_4['forecast_cloud_type'] = df_4['forecast_cloud_type'].fillna('No Cloud')  ## Old Query
         df_4['Cloud Description'] = df_4['Cloud Description'].str.replace("_", " ").str.title()
         df_4['ghi_actual'] = df_4['ghi_actual'].fillna('None')
@@ -563,9 +569,12 @@ def get_fw_data(request):
         df = df.groupby(['timestamp']).aggregate(
             {f'{variable}_actual': 'mean', f'{variable}_forecast': 'mean',
              'forecast_cloud_index': 'mean'}).reset_index()
+        max_variable =  df[f'{variable}_actual'].max()
         df['Deviation'] = (df[f'{variable}_actual'] - df[f'{variable}_forecast']).abs().div(
-            df[f'{variable}_actual']) * 100
+            max_variable) * 100
+        
         mn = df.loc[df[f'{variable}_actual'] > 0, 'Deviation'].mean()
+        # print(f"Mean is {df['Deviation'].mean()}")
         df['color'] = df['Deviation'].map(lambda x: "Green" if x <= mn else "Red")
         df['Graph Index'] = None
         df['Warning Description'] = None
@@ -637,6 +646,11 @@ def get_fw_data(request):
             marker_color="red"
 
         ))
+        fig2.add_hline(y=mn,name='MAE',line_color='LightGrey',line_dash="dot",
+              annotation_text=" MAE", 
+              annotation_font_size=15,
+              annotation_font_color="LightGrey",
+              annotation_position="top left")
         fig2.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='LightGrey')
         fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)',
                            plot_bgcolor='rgba(0,0,0,0)',
@@ -657,6 +671,7 @@ def get_fw_data(request):
                                pad=1
                            ),
                            )
+
         fig.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
         fig.update_xaxes(showgrid=True, gridwidth=0.4, gridcolor='grey', color='white')
         fig.update_layout(legend_font_color='grey')
@@ -683,6 +698,7 @@ def get_warnings_data(request):
         ci_index = 0.1
         # Get the Data Frame
         df = pd.read_csv(f'static/data/{username}.csv')
+        
         now_timestamp = datetime.now()
         three_hours_plus = now_timestamp + timedelta(hours=3)
 
@@ -691,6 +707,7 @@ def get_warnings_data(request):
 
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         df = df.loc[(df['timestamp']>=now_timestamp)&(df['timestamp']<=three_hours_plus),:]
+        
         fnl = df.copy()
         fnl['Warning Description'] = None
         fnl['Warning Category'] = None
@@ -784,3 +801,113 @@ def get_warnings_data(request):
                            margin={'l': 0, 't': 30, 'b': 0, 'r': 0})
         graphJSON2 = json.dumps(fig2, cls=enc_pltjson)
         return JsonResponse({'data': graphJSON, 'histos': graphJSON2}, status=200, safe=False)
+
+
+def update_on_site_change(request):
+    if request.method == "GET":
+        group = request.GET['group']
+        client = request.GET['client_name']
+        site_name = request.GET['site_name']
+        # yesterday = datetime.now().date()
+        date_yesterday = datetime.now() -timedelta(days=1)
+        yesterday = date_yesterday.date()
+        variable = 'ghi'
+        time_string = datetime.strftime(yesterday, '%m-%d-%y %H:%M:%S')
+        if group == "Admin":
+            query = ""
+        else:
+            df = pd.read_csv(f'static/data/{client}.csv')
+            df = df.rename({'site_client_name':'client_name'},axis='columns')
+        ci_index = 0.1
+        # df = get_sql_data(query)
+
+        # print(query)
+        df = df.loc[df['site_name'] == site_name, :]
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df = df.loc[df['timestamp']>=date_yesterday,:]
+        df = df.groupby(['timestamp', 'site_name', 'client_name']).aggregate(
+            {'ghi_forecast': 'mean', 'ghi_actual': 'mean', 'forecast_cloud_index': 'mean', 'site_lat': 'mean',
+             'site_lon': 'mean'}).reset_index()
+
+        df['C_I_R'] = df['forecast_cloud_index'] * 100
+        df['Warning Description'] = None
+        df['Warning Category'] = None
+        df['Graph Index'] = None
+        df.loc[df['forecast_cloud_index'] > 0.1, "Warning Category"] = "Red"
+        df.loc[df['forecast_cloud_index'] <= 0.1, "Warning Category"] = "Green"
+        df.loc[df['forecast_cloud_index'] > 0.1, "Warning Description"] = "Cloud Warning"
+        df.loc[df['forecast_cloud_index'] <= 0.1, "Warning Description"] = "No Warning"
+
+        for x in df.loc[:, 'forecast_cloud_index'].index:
+            if df['forecast_cloud_index'][x] > ci_index:
+                df['Graph Index'][x] = df[f'ghi_forecast'][x]
+        color_list = ['lightgreen', 'green', 'red', 'red', 'red', 'red', 'red', 'crimson', 'crimson', 'crimson']
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(
+            x=df['timestamp'],
+            y=df[f'{variable}_actual'],
+            name=f"{variable.title()} Actual"
+        ))
+        fig2.add_trace(go.Scatter(
+            x=df['timestamp'],
+            y=df[f'{variable}_forecast'],
+            name=f"{variable.title()} Forecast"
+        ))
+        fig2.add_trace(
+            go.Scatter(
+                x=df['timestamp'],
+                y=df['Graph Index'],
+                name='Cloud Warning',
+                mode='markers',
+                marker_color='orange',
+                marker_size=10
+            )
+        )
+
+        fig2.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='LightGrey')
+        fig2.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+
+            height=500,
+            xaxis_title="Timestamp",
+            yaxis_title="GHI (W/m2)",
+            # legend_title="Legends",
+
+            font=dict(
+                family="Arial",
+                size=15,
+            ),
+            margin=dict(
+                l=10,
+                r=10,
+                b=10,
+                t=10,
+                pad=1
+            ),
+        )
+        fig2.update_yaxes(showgrid=True, gridwidth=0.4, gridcolor='grey',color='white')
+        fig2.update_xaxes(showgrid=True, gridwidth=0.4, gridcolor='grey',color='white')
+        fig2.update_layout(legend_font_color='grey')
+        fig2.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                height=400,
+                xaxis_title="Timestamp",
+                yaxis_title="GHI (W/m2)",
+                # legend_title="Legends",
+
+                font=dict(
+                    family="Arial",
+                    size=15,
+                ),
+                margin=dict(
+                    l=10,
+                    r=10,
+                    b=10,
+                    t=10,
+                    pad=1
+                ),
+            )
+        graphJSON2 = json.dumps(fig2, cls=enc_pltjson)
+        return JsonResponse({'graphs_data': graphJSON2}, status=200, safe=False)

@@ -207,7 +207,27 @@
             get_forecast_graph();
 
 
+            $('#select_site').unbind('change').change(function(){
+                $('#canvas_section1').hide()
+                $('.center:nth-child(2)').show()
 
+                site_selected = $(this).val()
+                {#console.log(site_selected)#}
+                $.ajax({
+                    url:{% url 'get_homepage_graph_data' %},
+                    dataType:'json',
+                    data: {'client_name': '{{user.username}}', 'group': '{{user.groups.all.0.name}}','site_name':site_selected},
+
+                    success: function (data) {
+                        $('.center:nth-child(2)').hide()
+                        $('#canvas_section1').show()
+                        var graphs = JSON.parse(data.graphs_data);
+                        Plotly.newPlot("canvas_section1", graphs, {});
+
+                    }
+                })
+
+            })
 
 
         })
