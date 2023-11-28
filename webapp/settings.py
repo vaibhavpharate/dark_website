@@ -27,7 +27,7 @@ SECRET_KEY = "django-insecure-0&!^e)uajw*=#^(u!ax(2qf$24x#%z421t%yo$ji#(261f*p1r
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["54.81.41.165","localhost",'EC2_DNS_NAME','127.0.0.1','www.skycaster.live']
+ALLOWED_HOSTS = ["54.81.41.165","localhost",'34.239.105.122','127.0.0.1','www.skycaster.live']
 
 
 # Application definition
