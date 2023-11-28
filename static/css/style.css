@@ -134,6 +134,8 @@ a:hover {
 
 .sidebar_text {
     color: #606669;
+    -webkit-transition: color 1s;
+    transition: color 1s;
 }
 
 .sidebar {
@@ -144,11 +146,16 @@ a:hover {
     height: 100vh;
     position: fixed;
     overflow: hidden;
+    -webkit-transition: width 1s;
+    transition: width 1s;
 }
 
 .sidebar:hover {
     width: 10em;
+    -webkit-transition: width 1s;
+    transition: width 1s;
 }
+
 
 .sidebar ul, .sidebar header, .sidebar .footer {
     width: 13em;
@@ -187,6 +194,7 @@ a:hover {
 
 .nav_links:hover {
     color: white;
+    
 
 }
 
