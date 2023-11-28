@@ -10,6 +10,7 @@ urlpatterns = [
     path('admin_logout',view=admin_logout,name='admin_logout'),
     path('client_logout',view=client_logout,name='client_logout'),
     path('homepage',view=homepage,name='homepage'),
+    path('',view=homepage,name='homepage'),
     path('forecast_tabular',view=forecast_tabular,name='forecast_tabular'),
     path('forecast_tabular/',view=forecast_tabular,name='forecast_tabular'),
     path('forecast_warning',view=forecast_warning,name='forecast_warning'),
