@@ -219,7 +219,7 @@ def get_data_store(username):
                         AND conf.type='Solar'  ORDER BY vda.timestamp desc"""
 
     df = get_sql_data(query)
-    df.to_csv(f'../static/data/{username}.csv',index=False)
+    df.to_csv(f'static/data/{username}.csv',index=False)
     # file_name = f"{username}.csv".format(settings.STATIC_ROOT)
     # with open(file_name,'w') as f:
     #     f.write(df.to_string())
