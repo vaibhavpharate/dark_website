@@ -42,7 +42,7 @@ from .forms import ClientsForm
 User = get_user_model()
 token = settings.MAPBOX_TOKEN
 px.set_mapbox_access_token(token)
-data_file_path = os.path.join(django_settings.STATICFILES_DIRS[0],'data')
+# data_file_path = os.path.join(django_settings.STATICFILES_DIRS[0],'data')
     
 date_format = '%Y-%m-%d %H:%M:%S'
 # Create your views here.
@@ -147,7 +147,7 @@ def client_logout(request):
     username = request.user.username
     
     if check_data_store(request):
-        os.remove(os.path.join(data_file_path,f'{username}.csv'))
+        os.remove(f'{username}.csv')
     logout(request)
     messages.warning(request, "You have successfully logged out.")
     return redirect('client_login')
@@ -192,7 +192,7 @@ def get_data_store(username):
     date = datetime.strftime(date,'%Y-%m-%d 00:00:00')
     sites = get_site_client(client_name=username, type='Solar')
     sites = tuple(sites)
-    print(data_file_path)
+    # print(data_file_path)
     query = f"""SELECT vda.site_name,
                                 vda.timestamp,
                                vda.wind_speed_10m_mps AS wind_speed_forecast,
@@ -219,12 +219,14 @@ def get_data_store(username):
                         AND conf.type='Solar'  ORDER BY vda.timestamp desc"""
 
     df = get_sql_data(query)
-    df.to_csv(os.path.join(data_file_path,f'{username}.csv'),index=False)
+    df.to_csv(f'{username}.csv',index=False)
     return f"Data Store created for {username} for date {date}"
 
 def check_data_store(request):
     username = request.user.username
-    return os.path.exists(os.path.join(data_file_path,f'{username}.csv'))
+    # return os.path.exists(os.path.join(data_file_path,f'{username}.csv'))
+    return os.path.exists(f'{username}.csv')
+
 
 @login_required(login_url='client_login')
 def homepage(request):
@@ -341,7 +343,9 @@ def get_homepage_data(request):
 
             ci_index = 0.1
             # df = get_sql_data(query)
-            df = pd.read_csv(os.path.join(data_file_path,f'{client_name}.csv'))
+            # df = pd.read_csv(os.path.join(data_file_path,f'{client_name}.csv'))
+            df = pd.read_csv(f'{client_name}.csv')
+
             df = df.rename({'site_client_name':'client_name'},axis='columns')
             # print(df.columns)
             df = df.groupby(['timestamp', 'site_name', 'client_name']).aggregate(
@@ -496,7 +500,7 @@ def get_forecast_table(request):
                         AND conf.type='Solar'  ORDER BY vda.timestamp desc LIMIT 10000;"""
 
         # df_4 = get_sql_data(query)
-        df_4 = pd.read_csv(os.path.join(data_file_path,f'{username}.csv'))
+        df_4 = pd.read_csv(f'{username}.csv')
         ci_index = 0.1
         df_4 = df_4.loc[df_4['site_status']=='Active',:]
         df_4['forecast_cloud_type'] = df_4['forecast_cloud_type'].fillna('No Cloud')  ## Old Query
@@ -550,7 +554,7 @@ def get_fw_data(request):
             FROM forecast.v_db_api vda JOIN configs.site_config conf ON vda.site_name = conf.site_name 
             LEFT JOIN site_actual.site_actual sa on (vda.timestamp,vda.site_name) = (sa.timestamp,sa.site_name) 
             WHERE conf.site_name = '{site_name}' AND vda.ci_data IS NOT NULL  AND vda.timestamp > '{start_date}' AND vda.timestamp <= '{end_date}'  ORDER BY timestamp DESC"""
-        df = pd.read_csv(os.path.join(data_file_path,f'{username}.csv'))
+        df = pd.read_csv(f'{username}.csv')
         df['timestamp'] = pd.to_datetime(df['timestamp'],format=date_format)
         min_date = df.loc[:,'timestamp'].min()
         max_date = df.loc[:,'timestamp'].max()
@@ -701,7 +705,7 @@ def get_warnings_data(request):
         group = request.GET['username']
         ci_index = 0.1
         # Get the Data Frame
-        df = pd.read_csv(os.path.join(data_file_path,f'{username}.csv'))
+        df = pd.read_csv(f'{username}.csv')
         
         now_timestamp = datetime.now()
         three_hours_plus = now_timestamp + timedelta(hours=3)
@@ -820,7 +824,7 @@ def update_on_site_change(request):
         if group == "Admin":
             query = ""
         else:
-            df = pd.read_csv(os.path.join(data_file_path,f'{client}.csv'))
+            df = pd.read_csv(f'{client}.csv')
             df = df.rename({'site_client_name':'client_name'},axis='columns')
         ci_index = 0.1
         # df = get_sql_data(query)
