@@ -147,7 +147,7 @@ def client_logout(request):
     username = request.user.username
     
     if check_data_store(request):
-        os.remove(f'{username}.csv')
+        os.remove(f'{settings.MEDIA_ROOT}/data/{username}.csv')
     logout(request)
     messages.warning(request, "You have successfully logged out.")
     return redirect('client_login')
